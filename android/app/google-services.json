@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "155052970365",
+    "project_id": "b2buypush",
+    "storage_bucket": "b2buypush.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155052970365:android:9b5cee513ef76862a73c14",
+        "android_client_info": {
+          "package_name": "regent.info.b2but.b2buy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVceO25Q4ZgeqnFjaRySTZGlCTe_oHRm8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

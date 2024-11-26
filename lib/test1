@@ -1,0 +1,324 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_typeahead/flutter_typeahead.dart';
+
+import 'dart:io';
+
+void main() => runApp(MyApp());
+
+// Replace the placeholders with your actual API key and secret
+String apiKey = "7cbf607bc7e6184"; //yaanee
+String apiSecret = "bbce3ba695e127f"; //yaanee
+//String apiKey = "3c966af1562b29d"; //3pin
+//String apiSecret = "04004ec744768d0"; //3pin not use
+//String apiSecret = "d3948302cc8874c"; //3pin
+
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  String _imageUrl = '';
+  String _partnerName = '';
+  TextEditingController _rateController = TextEditingController();
+  TextEditingController _qtyController = TextEditingController();
+  double _amount = 0;
+  List<Map<String, dynamic>> _dataList = [];
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Frappe API Demo',
+      home: Scaffold(
+        appBar: AppBar(
+            title: const Text('Order Details'),
+            centerTitle: true,
+            actions: [
+              IconButton(
+                onPressed: () {
+                  print(_dataList);
+                },
+                icon: Icon(Icons.send),
+              ),
+            ]),
+        body: SingleChildScrollView(
+          child: Center(
+            child: FutureBuilder<List<dynamic>>(
+              future: fetchData(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Column(
+                    children: [
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Image URL',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(
+                              Radius.circular(15),
+                            ),
+                          ),
+                          isDense: true,
+                        ),
+                        controller: TextEditingController(text: _imageUrl),
+                        onChanged: (value) {
+                          // Update the URL of the image
+                          setState(() {
+                            _imageUrl = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      if (_imageUrl.isNotEmpty)
+                        Image.network(
+                          _imageUrl,
+                          height: 200,
+                          width: 200,
+                          fit: BoxFit.cover,
+                        ),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      TypeAheadFormField<String>(
+                        textFieldConfiguration: TextFieldConfiguration(
+                          decoration: InputDecoration(
+                            labelText: 'Item',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(15),
+                              ),
+                            ),
+                            isDense: true,
+                          ),
+                          controller: TextEditingController(text: _partnerName),
+                        ),
+                        suggestionsCallback: (pattern) async {
+                          // Filter the partner names based on the input pattern
+                          List<String> partnerNames = (snapshot.data ?? [])
+                              .map((item) => item["partner_name"].toString())
+                              .toList();
+                          return partnerNames.where((name) => name
+                              .toLowerCase()
+                              .contains(pattern.toLowerCase()));
+                        },
+                        itemBuilder: (context, suggestion) {
+                          return ListTile(
+                            title: Text(suggestion),
+                          );
+                        },
+                        onSuggestionSelected: (suggestion) {
+                          // Set the selected partner name
+                          setState(() {
+                            _partnerName = suggestion;
+                            //_imageUrl = suggestion;
+                            //print(suggestion);
+                          });
+                          // Fetch the rate for the selected partner
+                          final partnerData = (snapshot.data ?? []).firstWhere(
+                            (item) =>
+                                item["partner_name"].toString() == suggestion,
+                            orElse: () => null,
+                          );
+                          if (partnerData != null) {
+                            final rate = partnerData["rate"].toString();
+                            _rateController.text = rate;
+                            final image = partnerData["images"].toString();
+                            _imageUrl = image;
+                            // Recalculate the amount based on the fetched rate and qty
+                            setState(() {
+                              _amount = double.parse(rate) *
+                                  double.parse(_qtyController.text);
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 100,
+                            child: TextField(
+                              decoration: InputDecoration(
+                                labelText: 'Size',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(15),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Container(
+                            width: 100,
+                            child: TextField(
+                              decoration: InputDecoration(
+                                labelText: 'Size',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(15),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Container(
+                            width: 100,
+                            child: TextField(
+                              decoration: InputDecoration(
+                                labelText: 'Size',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(15),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Rate',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(
+                              Radius.circular(15),
+                            ),
+                          ),
+                          isDense: true,
+                        ),
+                        keyboardType: TextInputType.number,
+                        controller: _rateController,
+                        onChanged: (value) {
+                          // Recalculate the amount when the rate or qty changes
+                          setState(() {
+                            _amount = double.parse(value) *
+                                double.parse(_qtyController.text);
+                          });
+                        },
+                      ),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      TextField(
+                        decoration: InputDecoration(
+                          labelText: 'Qty',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.all(
+                              Radius.circular(15),
+                            ),
+                          ),
+                          isDense: true,
+                        ),
+                        keyboardType: TextInputType.number,
+                        controller: _qtyController,
+                        onChanged: (value) {
+                          // Recalculate the amount when the rate or qty changes
+                          setState(() {
+                            _amount = double.parse(value) *
+                                double.parse(_rateController.text);
+                          });
+                        },
+                      ),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      Text(
+                        'Amount: $_amount',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          // Add the entered data to a list
+                          setState(() {
+                            _dataList.add({
+                              "partner_name": _partnerName,
+                              "rate": double.parse(_rateController.text),
+                              "qty": double.parse(_qtyController.text),
+                              "amount": _amount,
+                            });
+                          });
+
+                          // Clear the text fields
+                          _rateController.clear();
+                          _qtyController.clear();
+                          setState(() {
+                            _partnerName = '';
+                            _amount = 0;
+                          });
+                        },
+                        child: Text('Add'),
+                      ),
+                      const SizedBox(
+                        height: 8,
+                      ),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _dataList.length,
+                        itemBuilder: (context, index) {
+                          final data = _dataList[index];
+                          return ListTile(
+                            title: Text(data["partner_name"]),
+                            //subtitle: Text('Amount: ${data["amount"]}'),
+                            subtitle: Text(
+                                'Rate: ${data["rate"]} Qty: ${data["qty"]} Amount: ${data["amount"]}'),
+                            trailing: GestureDetector(
+                              child: const Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  _dataList.removeAt(index);
+                                });
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                } else if (snapshot.hasError) {
+                  return Text("${snapshot.error}");
+                }
+                // By default, show a loading spinner
+                return CircularProgressIndicator();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<List<dynamic>> fetchData() async {
+    final response = await http.post(
+      Uri.parse(
+          //'https://3pin.glenmargon.com/api/method/regent.regent.client.get_flutter_mobile'),
+          'https://erp.yaaneefashions.com/api/method/regent.regent.client.get_flutter_data'),
+      headers: {
+        'Authorization': 'token $apiKey:$apiSecret',
+        'Content-Type': 'application/json'
+      },
+      body: json.encode({"args": {}}),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body)["message"];
+    } else {
+      throw Exception('Failed to load data');
+    }
+  }
+}
